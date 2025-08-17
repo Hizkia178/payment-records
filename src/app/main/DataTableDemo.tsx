@@ -8,12 +8,11 @@ import {
     getCoreRowModel,
     getFilteredRowModel,
     getSortedRowModel,
-    getPaginationRowModel,
     SortingState,
     useReactTable,
     VisibilityState,
 } from "@tanstack/react-table"
-import { AlertCircle, ArrowUpDown, Bell, ChevronDownIcon, Info, MoreHorizontal, Plus, Printer, Trash2, SearchX, ChevronLeft, ChevronRight } from "lucide-react"
+import { AlertCircle, ArrowUpDown, Bell, ChevronDownIcon, Info, MoreHorizontal, Plus, Printer, Trash2, SearchX } from "lucide-react"
 import { Toaster, toast } from "sonner"
 import { useForm, Controller } from "react-hook-form"
 import {
@@ -61,7 +60,7 @@ import { AlertCircleIcon, BadgeCheckIcon } from "lucide-react"
 import { getPayments, createPayment, deletePayment, Status } from "@/app/actions"
 import { Payment } from "../types"
 
-// Fungsi untuk menghasilkan ID acak berdasarkan tanggal, bulan, dan tahun
+
 const generatePaymentId = (): string => {
     const now = new Date();
     const year = now.getFullYear().toString();
@@ -303,7 +302,6 @@ export function DataTableDemo() {
         getCoreRowModel: getCoreRowModel(),
         getSortedRowModel: getSortedRowModel(),
         getFilteredRowModel: getFilteredRowModel(),
-        getPaginationRowModel: getPaginationRowModel(),
         onColumnVisibilityChange: setColumnVisibility,
         onRowSelectionChange: setRowSelection,
         state: {
@@ -311,11 +309,6 @@ export function DataTableDemo() {
             columnFilters,
             columnVisibility,
             rowSelection,
-        },
-        initialState: {
-            pagination: {
-                pageSize: 10,
-            },
         },
         meta: {
             setData,
@@ -520,9 +513,9 @@ export function DataTableDemo() {
                                             {header.isPlaceholder
                                                 ? null
                                                 : flexRender(
-                                                      header.column.columnDef.header,
-                                                      header.getContext()
-                                                  )}
+                                                    header.column.columnDef.header,
+                                                    header.getContext()
+                                                )}
                                         </TableHead>
                                     ))}
                                 </TableRow>
@@ -545,47 +538,23 @@ export function DataTableDemo() {
                                 ))
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={columns.length} className="h-24 text-center">
-                                        <div className="flex flex-col items-center justify-center text-gray-500">
+                                    <TableCell colSpan={columns.length} className="h-80 p-0">
+                                        <div className="flex h-full w-full flex-col items-center justify-center text-gray-500">
                                             <SearchX className="w-6 h-6 mb-1" />
                                             <span>Tidak ada hasil.</span>
                                         </div>
                                     </TableCell>
+
                                 </TableRow>
                             )}
                         </TableBody>
                     </Table>
                 </ScrollArea>
-                <div className="flex flex-col sm:flex-row items-center justify-between space-y-2 sm:space-y-0 py-4">
+                <div className="flex items-center justify-start py-4">
                     <div className="text-muted-foreground text-xs md:text-sm">
                         {table.getFilteredSelectedRowModel().rows.length} dari{" "}
                         {table.getFilteredRowModel().rows.length} baris dipilih.
                     </div>
-                    {data.length > 10 && (
-                        <div className="flex items-center gap-2">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => table.previousPage()}
-                                disabled={!table.getCanPreviousPage()}
-                                className="flex items-center gap-1"
-                            >
-                                <ChevronLeft className="h-4 w-4" /> Sebelumnya
-                            </Button>
-                            <span className="text-xs md:text-sm">
-                                Halaman {table.getState().pagination.pageIndex + 1} dari {table.getPageCount()}
-                            </span>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => table.nextPage()}
-                                disabled={!table.getCanNextPage()}
-                                className="flex items-center gap-1"
-                            >
-                                Berikutnya <ChevronRight className="h-4 w-4" />
-                            </Button>
-                        </div>
-                    )}
                 </div>
             </div>
         </div>
