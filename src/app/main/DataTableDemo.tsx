@@ -12,7 +12,7 @@ import {
     useReactTable,
     VisibilityState,
 } from "@tanstack/react-table"
-import { AlertCircle, ArrowUpDown, Bell, ChevronDownIcon, Info, MoreHorizontal, Plus, Printer, Trash2 } from "lucide-react"
+import { AlertCircle, ArrowUpDown, Bell, ChevronDownIcon, Info, MoreHorizontal, Plus, Printer, Trash2, SearchX } from "lucide-react"
 import { Toaster, toast } from "sonner"
 import { useForm, Controller } from "react-hook-form"
 import {
@@ -55,18 +55,25 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
+import { Badge } from "@/components/ui/badge"
+import { AlertCircleIcon, BadgeCheckIcon } from "lucide-react"
+import { getPayments, createPayment, deletePayment, Status } from "@/app/actions"
+import { Payment } from "../types"
 
-interface Payment {
-    id: string
-    amount: number
-    status: "pending" | "processing" | "success" | "failed"
-    email: string
-}
+// Fungsi untuk menghasilkan ID acak berdasarkan tanggal, bulan, dan tahun
+const generatePaymentId = (): string => {
+    const now = new Date();
+    const year = now.getFullYear().toString();
+    const month = (now.getMonth() + 1).toString().padStart(2, "0"); // Bulan dimulai dari 0
+    const day = now.getDate().toString().padStart(2, "0");
+    const randomStr = Math.random().toString(36).substring(2, 5).toUpperCase(); // 3 karakter acak
+    return `${year}${month}${day}-${randomStr}`;
+};
 
+// Definisikan tipe FormData tanpa id
 interface FormData {
-    id: string
     amount: string
-    status: Payment["status"]
+    status: Status
     email: string
 }
 
@@ -82,14 +89,14 @@ export const columns: ColumnDef<Payment>[] = [
                     (table.getIsSomePageRowsSelected() && "indeterminate")
                 }
                 onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-                aria-label="Select all"
+                aria-label="Pilih semua"
             />
         ),
         cell: ({ row }) => (
             <Checkbox
                 checked={row.getIsSelected()}
                 onCheckedChange={(value) => row.toggleSelected(!!value)}
-                aria-label="Select row"
+                aria-label="Pilih baris"
             />
         ),
         enableSorting: false,
@@ -98,9 +105,47 @@ export const columns: ColumnDef<Payment>[] = [
     {
         accessorKey: "status",
         header: "Status",
-        cell: ({ row }) => (
-            <div className="capitalize">{row.getValue("status")}</div>
-        ),
+        cell: ({ row }) => {
+            const status = row.getValue("status") as Payment["status"];
+            let badgeContent = null;
+            switch (status) {
+                case "pending":
+                    badgeContent = (
+                        <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 dark:bg-yellow-600">
+                            <AlertCircleIcon className="w-4 h-4 mr-1" />
+                            Menunggu
+                        </Badge>
+                    );
+                    break;
+                case "processing":
+                    badgeContent = (
+                        <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-600">
+                            <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 102 0V6zm-1 7a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                            </svg>
+                            Sedang Diproses
+                        </Badge>
+                    );
+                    break;
+                case "success":
+                    badgeContent = (
+                        <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-600">
+                            <BadgeCheckIcon className="w-4 h-4 mr-1" />
+                            Berhasil
+                        </Badge>
+                    );
+                    break;
+                case "failed":
+                    badgeContent = (
+                        <Badge variant="destructive" className="bg-red-100 text-red-800 dark:bg-red-600">
+                            <AlertCircleIcon className="w-4 h-4 mr-1" />
+                            Gagal
+                        </Badge>
+                    );
+                    break;
+            }
+            return badgeContent;
+        },
     },
     {
         accessorKey: "email",
@@ -119,14 +164,14 @@ export const columns: ColumnDef<Payment>[] = [
         accessorKey: "amount",
         header: () => (
             <div className="text-right flex items-center justify-end gap-2">
-                Amount <AlertCircle className="h-4 w-4" />
+                Jumlah <AlertCircle className="h-4 w-4" />
             </div>
         ),
         cell: ({ row }) => {
             const amount = parseFloat(row.getValue("amount"))
-            const formatted = new Intl.NumberFormat("en-US", {
+            const formatted = new Intl.NumberFormat("id-ID", {
                 style: "currency",
-                currency: "USD",
+                currency: "IDR",
             }).format(amount)
             return <div className="text-right font-medium">{formatted}</div>
         },
@@ -143,56 +188,55 @@ export const columns: ColumnDef<Payment>[] = [
                 month: "long",
                 day: "numeric",
             }
-            const formattedDate = now.toLocaleDateString("en-US", optionsDate)
+            const formattedDate = now.toLocaleDateString("id-ID", optionsDate)
             const optionsTime: Intl.DateTimeFormatOptions = {
                 hour: "numeric",
                 minute: "numeric",
                 hour12: true,
             }
-            const formattedTime = now.toLocaleTimeString("en-US", optionsTime)
+            const formattedTime = now.toLocaleTimeString("id-ID", optionsTime)
 
             return (
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button variant="ghost" className="h-8 w-8 p-0">
-                            <span className="sr-only">Open menu</span>
+                            <span className="sr-only">Buka menu</span>
                             <MoreHorizontal className="h-4 w-4" />
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuLabel>Aksi</DropdownMenuLabel>
                         <DropdownMenuItem
                             onClick={() => {
                                 navigator.clipboard.writeText(payment.id)
-                                toast("Payment ID copied to clipboard", {
-                                    description: `${formattedDate} at ${formattedTime}`,
+                                toast("ID Pembayaran disalin ke clipboard", {
+                                    description: `${formattedDate} pada ${formattedTime}`,
                                     action: {
-                                        label: "Undo",
-                                        onClick: () => console.log("Undo copy"),
+                                        label: "Batalkan",
+                                        onClick: () => console.log("Batalkan salin"),
                                     },
                                     position: "top-right",
                                 })
                             }}
                         >
-                            Copy payment ID
+                            Salin ID Pembayaran
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
-                            onClick={() => {
+                            onClick={async () => {
                                 const setData = (table.options.meta as { setData: (data: Payment[]) => void })?.setData
                                 if (setData) {
-                                    const updatedData = table.options.data.filter(
-                                        (item: Payment) => item.id !== payment.id
-                                    )
+                                    await deletePayment(payment.id)
+                                    const updatedData = await getPayments()
                                     setData(updatedData)
-                                    localStorage.setItem("payments", JSON.stringify(updatedData))
-                                    toast("Payment deleted successfully", {
-                                        description: `${formattedDate} at ${formattedTime}`,
+                                    toast("Pembayaran berhasil dihapus", {
+                                        description: `${formattedDate} pada ${formattedTime}`,
                                         action: {
-                                            label: "Undo",
-                                            onClick: () => {
-                                                setData([...table.options.data, payment])
-                                                localStorage.setItem("payments", JSON.stringify([...table.options.data, payment]))
+                                            label: "Batalkan",
+                                            onClick: async () => {
+                                                await createPayment(payment)
+                                                const revertedData = await getPayments()
+                                                setData(revertedData)
                                             },
                                         },
                                         position: "top-right",
@@ -200,22 +244,22 @@ export const columns: ColumnDef<Payment>[] = [
                                 }
                             }}
                         >
-                            <Trash2 className="mr-2 h-4 w-4" /> Delete
+                            <Trash2 className="mr-2 h-4 w-4" /> Hapus
                         </DropdownMenuItem>
                         <DropdownMenuItem
                             onClick={() => {
                                 window.print()
-                                toast("Print initiated", {
-                                    description: `${formattedDate} at ${formattedTime}`,
+                                toast("Cetak dimulai", {
+                                    description: `${formattedDate} pada ${formattedTime}`,
                                     action: {
-                                        label: "Cancel",
-                                        onClick: () => console.log("Print cancelled"),
+                                        label: "Batalkan",
+                                        onClick: () => console.log("Cetak dibatalkan"),
                                     },
                                     position: "top-right",
                                 })
                             }}
                         >
-                            <Printer className="mr-2 h-4 w-4" /> Print
+                            <Printer className="mr-2 h-4 w-4" /> Cetak
                         </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
@@ -234,19 +278,18 @@ export function DataTableDemo() {
     const [alert, setAlert] = React.useState({ show: false, message: "", type: "success" as "success" | "error" })
     const { control, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
         defaultValues: {
-            id: "",
             amount: "",
-            status: "pending",
+            status: "pending" as Status,
             email: "",
         },
     })
 
-   
     React.useEffect(() => {
-        const savedData = localStorage.getItem("payments")
-        if (savedData) {
-            setData(JSON.parse(savedData))
+        async function fetchData() {
+            const payments = await getPayments()
+            setData(payments)
         }
+        fetchData()
     }, [])
 
     const table = useReactTable({
@@ -270,7 +313,7 @@ export function DataTableDemo() {
         },
     })
 
-    const onSubmit = (formData: FormData) => {
+    const onSubmit = async (formData: FormData) => {
         const now = new Date()
         const optionsDate: Intl.DateTimeFormatOptions = {
             weekday: "long",
@@ -278,18 +321,18 @@ export function DataTableDemo() {
             month: "long",
             day: "numeric",
         }
-        const formattedDate = now.toLocaleDateString("en-US", optionsDate)
+        const formattedDate = now.toLocaleDateString("id-ID", optionsDate)
         const optionsTime: Intl.DateTimeFormatOptions = {
             hour: "numeric",
             minute: "numeric",
             hour12: true,
         }
-        const formattedTime = now.toLocaleTimeString("en-US", optionsTime)
+        const formattedTime = now.toLocaleTimeString("id-ID", optionsTime)
 
         if (!formData.amount) {
             setAlert({
                 show: true,
-                message: "Amount is required.",
+                message: "Jumlah wajib diisi.",
                 type: "error",
             })
             setTimeout(() => setAlert({ show: false, message: "", type: "error" }), 3000)
@@ -297,18 +340,27 @@ export function DataTableDemo() {
         }
 
         const payment: Payment = {
-            id: formData.id,
+            id: generatePaymentId(), // Gunakan ID otomatis
             amount: parseFloat(formData.amount),
             status: formData.status,
             email: formData.email,
         }
 
-        const updatedData = [...data, payment]
+        await createPayment(payment)
+        const updatedData = await getPayments()
         setData(updatedData)
-        localStorage.setItem("payments", JSON.stringify(updatedData))
         reset()
         setIsDialogOpen(false)
-        toast.success(`Payment added successfully on ${formattedDate} at ${formattedTime}`, {
+        toast("Pembayaran berhasil ditambahkan", {
+            description: `${formattedDate} pada ${formattedTime}`,
+            action: {
+                label: "Batalkan",
+                onClick: async () => {
+                    await deletePayment(payment.id)
+                    const revertedData = await getPayments()
+                    setData(revertedData)
+                },
+            },
             position: "top-right",
         })
     }
@@ -319,15 +371,22 @@ export function DataTableDemo() {
             {alert.show && (
                 <Alert className="max-w-3xl mb-4">
                     {alert.type === "error" ? <Info className="h-4 w-4" /> : <Bell className="h-4 w-4" />}
-                    <AlertTitle>{alert.type === "success" ? "Success" : "Error"}</AlertTitle>
+                    <AlertTitle>{alert.type === "success" ? "Berhasil" : "Kesalahan"}</AlertTitle>
                     <AlertDescription>{alert.message}</AlertDescription>
                 </Alert>
             )}
-            <h1 className="text-3xl font-bold mb-4">Payment Records</h1>
+            <div className="mb-6">
+                <div className="flex items-center justify-center gap-2">
+                    <h1 className="text-3xl font-bold">Catatan Pembayaran</h1>
+                </div>
+                <p className="text-gray-500 mt-1">
+                    Kelola dan pantau semua transaksi pembayaran Anda dengan mudah
+                </p>
+            </div>
             <div className="w-full max-w-3xl">
                 <div className="flex items-center py-4 gap-4">
                     <Input
-                        placeholder="Filter emails..."
+                        placeholder="Filter email..."
                         value={(table.getColumn("email")?.getFilterValue() as string) ?? ""}
                         onChange={(event) =>
                             table.getColumn("email")?.setFilterValue(event.target.value)
@@ -337,43 +396,23 @@ export function DataTableDemo() {
                     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                         <DialogTrigger asChild>
                             <Button className="flex items-center gap-2 hover:-translate-y-1 transition-all">
-                                <Plus className="h-4 w-4" /> Add Payment
+                                <Plus className="h-4 w-4" /> Tambah Pembayaran
                             </Button>
                         </DialogTrigger>
                         <DialogContent>
                             <DialogHeader>
-                                <DialogTitle>Add New Payment</DialogTitle>
+                                <DialogTitle>Tambah Pembayaran Baru</DialogTitle>
                             </DialogHeader>
                             <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4 py-4">
                                 <div>
                                     <Controller
-                                        name="id"
-                                        control={control}
-                                        rules={{ required: "Payment ID is required" }}
-                                        render={({ field }) => (
-                                            <Input
-                                                placeholder="Payment ID"
-                                                {...field}
-                                                className={errors.id ? "border-red-500" : ""}
-                                            />
-                                        )}
-                                    />
-                                    {errors.id && (
-                                        <p className="flex items-center text-red-500 text-sm mt-1">
-                                            <AlertCircle className="w-4 h-4 mr-1" />
-                                            {errors.id.message}
-                                        </p>
-                                    )}
-                                </div>
-                                <div>
-                                    <Controller
                                         name="amount"
                                         control={control}
-                                        rules={{ required: "Amount is required", pattern: { value: /^\d+(\.\d+)?$/, message: "Invalid amount" } }}
+                                        rules={{ required: "Jumlah wajib diisi", pattern: { value: /^\d+(\.\d+)?$/, message: "Jumlah tidak valid" } }}
                                         render={({ field }) => (
                                             <Input
                                                 type="number"
-                                                placeholder="Amount"
+                                                placeholder="Jumlah"
                                                 {...field}
                                                 className={errors.amount ? "border-red-500" : ""}
                                             />
@@ -390,20 +429,20 @@ export function DataTableDemo() {
                                     <Controller
                                         name="status"
                                         control={control}
-                                        rules={{ required: "Status is required" }}
+                                        rules={{ required: "Status wajib diisi" }}
                                         render={({ field }) => (
                                             <Select
                                                 value={field.value}
                                                 onValueChange={field.onChange}
                                             >
                                                 <SelectTrigger className={errors.status ? "border-red-500" : ""}>
-                                                    <SelectValue placeholder="Select status" />
+                                                    <SelectValue placeholder="Pilih status" />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    <SelectItem value="pending">Pending</SelectItem>
-                                                    <SelectItem value="processing">Processing</SelectItem>
-                                                    <SelectItem value="success">Success</SelectItem>
-                                                    <SelectItem value="failed">Failed</SelectItem>
+                                                    <SelectItem value="pending">Menunggu</SelectItem>
+                                                    <SelectItem value="processing">Sedang Diproses</SelectItem>
+                                                    <SelectItem value="success">Berhasil</SelectItem>
+                                                    <SelectItem value="failed">Gagal</SelectItem>
                                                 </SelectContent>
                                             </Select>
                                         )}
@@ -419,7 +458,7 @@ export function DataTableDemo() {
                                     <Controller
                                         name="email"
                                         control={control}
-                                        rules={{ required: "Email is required", pattern: { value: /^\S+@\S+$/i, message: "Invalid email address" } }}
+                                        rules={{ required: "Email wajib diisi", pattern: { value: /^\S+@\S+$/i, message: "Alamat email tidak valid" } }}
                                         render={({ field }) => (
                                             <Input
                                                 placeholder="Email"
@@ -436,7 +475,7 @@ export function DataTableDemo() {
                                     )}
                                 </div>
                                 <Button type="submit" className="flex items-center gap-2 hover:-translate-y-1 transition-all">
-                                    <Plus className="h-4 w-4" /> Add Payment
+                                    <Plus className="w-4 h-4" /> Tambah Pembayaran
                                 </Button>
                             </form>
                         </DialogContent>
@@ -444,7 +483,7 @@ export function DataTableDemo() {
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button variant="outline" className="ml-auto flex items-center gap-2 hover:-translate-y-1 transition-all">
-                                Columns <ChevronDownIcon className="h-4 w-4" />
+                                Kolom <ChevronDownIcon className="h-4 w-4" />
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
@@ -474,9 +513,9 @@ export function DataTableDemo() {
                                             {header.isPlaceholder
                                                 ? null
                                                 : flexRender(
-                                                    header.column.columnDef.header,
-                                                    header.getContext()
-                                                )}
+                                                      header.column.columnDef.header,
+                                                      header.getContext()
+                                                  )}
                                         </TableHead>
                                     ))}
                                 </TableRow>
@@ -499,7 +538,10 @@ export function DataTableDemo() {
                             ) : (
                                 <TableRow>
                                     <TableCell colSpan={columns.length} className="h-24 text-center">
-                                        No results.
+                                        <div className="flex flex-col items-center justify-center text-gray-500">
+                                            <SearchX className="w-6 h-6 mb-1" />
+                                            <span>Tidak ada hasil.</span>
+                                        </div>
                                     </TableCell>
                                 </TableRow>
                             )}
@@ -508,8 +550,8 @@ export function DataTableDemo() {
                 </ScrollArea>
                 <div className="flex items-center justify-end space-x-2 py-4">
                     <div className="text-muted-foreground flex-1 text-sm">
-                        {table.getFilteredSelectedRowModel().rows.length} of{" "}
-                        {table.getFilteredRowModel().rows.length} row(s) selected.
+                        {table.getFilteredSelectedRowModel().rows.length} dari{" "}
+                        {table.getFilteredRowModel().rows.length} baris dipilih.
                     </div>
                 </div>
             </div>
