@@ -8,11 +8,12 @@ import {
     getCoreRowModel,
     getFilteredRowModel,
     getSortedRowModel,
+    getPaginationRowModel,
     SortingState,
     useReactTable,
     VisibilityState,
 } from "@tanstack/react-table"
-import { AlertCircle, ArrowUpDown, Bell, ChevronDownIcon, Info, MoreHorizontal, Plus, Printer, Trash2, SearchX } from "lucide-react"
+import { AlertCircle, ArrowUpDown, Bell, ChevronDownIcon, Info, MoreHorizontal, Plus, Printer, Trash2, SearchX, ChevronLeft, ChevronRight } from "lucide-react"
 import { Toaster, toast } from "sonner"
 import { useForm, Controller } from "react-hook-form"
 import {
@@ -64,13 +65,12 @@ import { Payment } from "../types"
 const generatePaymentId = (): string => {
     const now = new Date();
     const year = now.getFullYear().toString();
-    const month = (now.getMonth() + 1).toString().padStart(2, "0"); // Bulan dimulai dari 0
+    const month = (now.getMonth() + 1).toString().padStart(2, "0");
     const day = now.getDate().toString().padStart(2, "0");
-    const randomStr = Math.random().toString(36).substring(2, 5).toUpperCase(); // 3 karakter acak
+    const randomStr = Math.random().toString(36).substring(2, 5).toUpperCase();
     return `${year}${month}${day}-${randomStr}`;
 };
 
-// Definisikan tipe FormData tanpa id
 interface FormData {
     amount: string
     status: Status
@@ -90,6 +90,7 @@ export const columns: ColumnDef<Payment>[] = [
                 }
                 onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
                 aria-label="Pilih semua"
+                className="hidden md:flex"
             />
         ),
         cell: ({ row }) => (
@@ -97,6 +98,7 @@ export const columns: ColumnDef<Payment>[] = [
                 checked={row.getIsSelected()}
                 onCheckedChange={(value) => row.toggleSelected(!!value)}
                 aria-label="Pilih baris"
+                className="hidden md:flex"
             />
         ),
         enableSorting: false,
@@ -153,12 +155,13 @@ export const columns: ColumnDef<Payment>[] = [
             <Button
                 variant="ghost"
                 onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+                className="p-0"
             >
                 Email
                 <ArrowUpDown className="ml-2 h-4 w-4" />
             </Button>
         ),
-        cell: ({ row }) => <div className="lowercase">{row.getValue("email")}</div>,
+        cell: ({ row }) => <div className="lowercase truncate">{row.getValue("email")}</div>,
     },
     {
         accessorKey: "amount",
@@ -300,6 +303,7 @@ export function DataTableDemo() {
         getCoreRowModel: getCoreRowModel(),
         getSortedRowModel: getSortedRowModel(),
         getFilteredRowModel: getFilteredRowModel(),
+        getPaginationRowModel: getPaginationRowModel(),
         onColumnVisibilityChange: setColumnVisibility,
         onRowSelectionChange: setRowSelection,
         state: {
@@ -307,6 +311,11 @@ export function DataTableDemo() {
             columnFilters,
             columnVisibility,
             rowSelection,
+        },
+        initialState: {
+            pagination: {
+                pageSize: 10,
+            },
         },
         meta: {
             setData,
@@ -340,7 +349,7 @@ export function DataTableDemo() {
         }
 
         const payment: Payment = {
-            id: generatePaymentId(), // Gunakan ID otomatis
+            id: generatePaymentId(),
             amount: parseFloat(formData.amount),
             status: formData.status,
             email: formData.email,
@@ -366,40 +375,38 @@ export function DataTableDemo() {
     }
 
     return (
-        <div className="h-screen flex flex-col justify-center items-center gap-4 p-4">
+        <div className="flex flex-col min-h-screen p-4 md:p-6 lg:p-8">
             <Toaster richColors />
             {alert.show && (
-                <Alert className="max-w-3xl mb-4">
+                <Alert className="max-w-3xl mb-4 mx-auto">
                     {alert.type === "error" ? <Info className="h-4 w-4" /> : <Bell className="h-4 w-4" />}
                     <AlertTitle>{alert.type === "success" ? "Berhasil" : "Kesalahan"}</AlertTitle>
                     <AlertDescription>{alert.message}</AlertDescription>
                 </Alert>
             )}
-            <div className="mb-6">
-                <div className="flex items-center justify-center gap-2">
-                    <h1 className="text-3xl font-bold">Catatan Pembayaran</h1>
-                </div>
-                <p className="text-gray-500 mt-1">
+            <div className="mb-6 text-center">
+                <h1 className="text-2xl md:text-3xl font-bold">Catatan Pembayaran</h1>
+                <p className="text-gray-500 mt-1 text-sm md:text-base">
                     Kelola dan pantau semua transaksi pembayaran Anda dengan mudah
                 </p>
             </div>
-            <div className="w-full max-w-3xl">
-                <div className="flex items-center py-4 gap-4">
+            <div className="w-full max-w-4xl mx-auto">
+                <div className="flex flex-col sm:flex-row items-center py-4 gap-4">
                     <Input
                         placeholder="Filter email..."
                         value={(table.getColumn("email")?.getFilterValue() as string) ?? ""}
                         onChange={(event) =>
                             table.getColumn("email")?.setFilterValue(event.target.value)
                         }
-                        className="max-w-sm"
+                        className="max-w-sm w-full"
                     />
                     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                         <DialogTrigger asChild>
-                            <Button className="flex items-center gap-2 hover:-translate-y-1 transition-all">
+                            <Button className="flex items-center gap-2 hover:-translate-y-1 transition-all w-full sm:w-auto">
                                 <Plus className="h-4 w-4" /> Tambah Pembayaran
                             </Button>
                         </DialogTrigger>
-                        <DialogContent>
+                        <DialogContent className="w-[90vw] max-w-md">
                             <DialogHeader>
                                 <DialogTitle>Tambah Pembayaran Baru</DialogTitle>
                             </DialogHeader>
@@ -482,7 +489,7 @@ export function DataTableDemo() {
                     </Dialog>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="outline" className="ml-auto flex items-center gap-2 hover:-translate-y-1 transition-all">
+                            <Button variant="outline" className="flex items-center gap-2 hover:-translate-y-1 transition-all w-full sm:w-auto">
                                 Kolom <ChevronDownIcon className="h-4 w-4" />
                             </Button>
                         </DropdownMenuTrigger>
@@ -503,13 +510,13 @@ export function DataTableDemo() {
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </div>
-                <ScrollArea className="h-fit overflow-hidden rounded-md shadow-lg border">
-                    <Table>
+                <ScrollArea className="h-[400px] rounded-md shadow-lg border">
+                    <Table className="w-full">
                         <TableHeader>
                             {table.getHeaderGroups().map((headerGroup) => (
                                 <TableRow key={headerGroup.id}>
                                     {headerGroup.headers.map((header) => (
-                                        <TableHead key={header.id}>
+                                        <TableHead key={header.id} className="text-xs md:text-sm px-2 sticky top-0 bg-background z-10">
                                             {header.isPlaceholder
                                                 ? null
                                                 : flexRender(
@@ -527,9 +534,10 @@ export function DataTableDemo() {
                                     <TableRow
                                         key={row.id}
                                         data-state={row.getIsSelected() && "selected"}
+                                        className="text-xs md:text-sm"
                                     >
                                         {row.getVisibleCells().map((cell) => (
-                                            <TableCell key={cell.id}>
+                                            <TableCell key={cell.id} className="px-2 py-3">
                                                 {flexRender(cell.column.columnDef.cell, cell.getContext())}
                                             </TableCell>
                                         ))}
@@ -548,11 +556,36 @@ export function DataTableDemo() {
                         </TableBody>
                     </Table>
                 </ScrollArea>
-                <div className="flex items-center justify-end space-x-2 py-4">
-                    <div className="text-muted-foreground flex-1 text-sm">
+                <div className="flex flex-col sm:flex-row items-center justify-between space-y-2 sm:space-y-0 py-4">
+                    <div className="text-muted-foreground text-xs md:text-sm">
                         {table.getFilteredSelectedRowModel().rows.length} dari{" "}
                         {table.getFilteredRowModel().rows.length} baris dipilih.
                     </div>
+                    {data.length > 10 && (
+                        <div className="flex items-center gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => table.previousPage()}
+                                disabled={!table.getCanPreviousPage()}
+                                className="flex items-center gap-1"
+                            >
+                                <ChevronLeft className="h-4 w-4" /> Sebelumnya
+                            </Button>
+                            <span className="text-xs md:text-sm">
+                                Halaman {table.getState().pagination.pageIndex + 1} dari {table.getPageCount()}
+                            </span>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => table.nextPage()}
+                                disabled={!table.getCanNextPage()}
+                                className="flex items-center gap-1"
+                            >
+                                Berikutnya <ChevronRight className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
